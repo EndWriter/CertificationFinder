@@ -1,0 +1,54 @@
+#on orchestre
+version: '3.8'
+
+services:
+  #api django
+  web:
+    build: .
+    container_name: certificationfinder_api
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DATABASE_NAME=certificationfinder
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+    depends_on:
+    # j'attends que la bdd soit prete avant de demarrer django
+      db:
+        condition: service_healthy
+    networks:
+      - certificationfinder_network
+
+  #bdd postgres
+  db:
+    image: postgres:15-alpine
+    container_name: certificationfinder_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_schema.sql:/docker-entrypoint-initdb.d/init_schema.sql
+    environment:
+      - POSTGRES_DB=certificationfinder
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d certificationfinder"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - certificationfinder_network
+
+volumes:
+  postgres_data:
+
+networks:
+  certificationfinder_network:
+    driver: bridge
